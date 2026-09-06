@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pulsing I Love You Heart</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #050508;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+      cursor: pointer;
+    }
+    #bg-music {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 200px;
+      opacity: 0.6;
+      z-index: 10;
+      border-radius: 30px;
+      background: rgba(0,20,30,0.6);
+      backdrop-filter: blur(4px);
+      padding: 6px 12px;
+      border: 1px solid rgba(0,212,255,0.3);
+      color: #aaf;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: 0.3s;
+    }
+    #bg-music:hover {
+      opacity: 1;
+      background: rgba(0,30,40,0.8);
+    }
+    #bg-music audio {
+      width: 100%;
+      height: 30px;
+      border-radius: 20px;
+      background: transparent;
+    }
+    #bg-music audio::-webkit-media-controls-panel {
+      background: rgba(0,20,30,0.5);
+    }
+    #bg-music span {
+      white-space: nowrap;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+    @media (max-width: 600px) {
+      #bg-music {
+        width: 150px;
+        bottom: 10px;
+        right: 10px;
+        padding: 4px 8px;
+      }
+      #bg-music span {
+        font-size: 10px;
+      }
+    }
+    #click-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 20;
+      background: rgba(5,5,8,0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      color: rgba(200,230,255,0.6);
+      font-size: 26px;
+      letter-spacing: 4px;
+      backdrop-filter: blur(3px);
+      transition: opacity 0.8s ease;
+      pointer-events: auto;
+      font-family: 'Arial', sans-serif;
+      font-weight: 300;
+      text-shadow: 0 0 40px rgba(0,180,255,0.2);
+    }
+    #click-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #click-overlay span {
+      background: rgba(0,20,30,0.4);
+      padding: 20px 40px;
+      border-radius: 60px;
+      border: 1px solid rgba(0,212,255,0.2);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 0 60px rgba(0,180,255,0.1);
+    }
+    #click-overlay .emoji {
+      font-size: 32px;
+      margin-right: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="heartCanvas"></canvas>
+
+  <div id="bg-music">
+    <span>🎵 Angel</span>
+    <audio id="audioPlayer" loop preload="auto">
+      <source src="angel.mp3" type="audio/mpeg">
+      <source src="https://archive.org/download/MassiveAttackAngel/Massive%20Attack%20-%20Angel.mp3" type="audio/mpeg">
+      Ваш браузер не підтримує аудіо.
+    </audio>
+  </div>
+
+  <div id="click-overlay">
+    <span><span class="emoji">🎧</span> торкнись / клікни для музики</span>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('heartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      init();
+    });
+
+    const particles = [];
+    const numOutlineParticles = 350;
+    const numInnerParticles = 140;
+    let frame = 0;
+
+    function getHeartPosition(t) {
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+      return { x, y };
+    }
+
+    class Particle {
+      constructor(index, isInner = false) {
+        this.index = index;
+        this.isInner = isInner;
+        this.reset();
+      }
+
+      reset() {
+        const scale = Math.min(width, height) / 45;
+
+        if (!this.isInner) {
+          const t = Math.PI - (2 * Math.PI * (this.index / numOutlineParticles));
+          const pos = getHeartPosition(t);
+          this.x = width / 2 + pos.x * scale;
+          this.y = height / 2 + pos.y * scale;
+          this.delay = Math.floor(this.index * 2.0);
+          // ЗМЕНШЕНО: базовий розмір шрифту для контуру
+          this.baseFontSize = Math.floor(Math.random() * 4) + 8; // було 11, стало 8
+          this.flickerSpeed = 0.008 + Math.random() * 0.012;
+        } else {
+          const t = Math.random() * Math.PI * 2;
+          const pos = getHeartPosition(t);
+          const innerScale = Math.random() * 0.75;
+         
+          this.x = width / 2 + pos.x * scale * innerScale;
+          this.y = height / 2 + pos.y * scale * innerScale;
+          this.delay = Math.floor(numOutlineParticles * 1.2 + Math.random() * 80);
+          // ЗМЕНШЕНО: базовий розмір шрифту для внутрішніх частинок
+          this.baseFontSize = Math.floor(Math.random() * 5) + 7; // було 10, стало 7
+         
+          this.pulseSpeed = 0.02 + Math.random() * 0.02;
+          this.pulsePhase = Math.random() * Math.PI * 2;
+        }
+
+        this.text = "I Love You";
+        this.baseAlpha = 0.6 + Math.random() * 0.4;
+      }
+
+      draw() {
+        if (frame < this.delay) return;
+
+        const fadeIn = Math.min(1, (frame - this.delay) / 45);
+
+        let currentFontSize = this.baseFontSize;
+        let alpha = this.baseAlpha;
+
+        if (this.isInner) {
+          const pulse = Math.sin(frame * this.pulseSpeed + this.pulsePhase);
+          currentFontSize = this.baseFontSize + pulse * 2.5; // зменшено амплітуду пульсації
+          alpha = Math.max(0.2, Math.min(1, this.baseAlpha + pulse * 0.35));
+        } else {
+          const flicker = Math.sin(frame * this.flickerSpeed + this.index) * 0.25;
+          alpha = Math.max(0.15, Math.min(1, this.baseAlpha + flicker));
+        }
+
+        alpha *= fadeIn;
+
+        ctx.font = `${currentFontSize}px Arial, sans-serif`;
+        ctx.fillStyle = `rgba(0, 212, 255, ${alpha})`;
+        ctx.shadowColor = 'rgba(0, 180, 255, 0.9)';
+        ctx.shadowBlur = this.isInner ? 14 : 10;
+
+        ctx.fillText(this.text, this.x, this.y);
+      }
+    }
+
+    function init() {
+      particles.length = 0;
+      frame = 0;
+
+      for (let i = 0; i < numOutlineParticles; i++) {
+        particles.push(new Particle(i, false));
+      }
+
+      for (let i = 0; i < numInnerParticles; i++) {
+        particles.push(new Particle(i, true));
+      }
+    }
+
+    function drawCenterText() {
+      const startFrame = numOutlineParticles * 2.0 + 30;
+      if (frame > startFrame) {
+        const centerAlpha = Math.min(1, (frame - startFrame) / 100);
+       
+        // ЗМЕНШЕНО: центральний текст тепер менший
+        const centerPulse = Math.sin(frame * 0.03) * 2; // зменшено амплітуду пульсації
+        const fontSize = 32 + centerPulse; // було 42, стало 32
+
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        ctx.fillStyle = `rgba(230, 250, 255, ${centerAlpha})`;
+        ctx.shadowColor = 'rgba(0, 220, 255, 1)';
+        ctx.shadowBlur = 25;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('I Love You Sonya', width / 2, height / 2);
+      }
+    }
+
+    function animate() {
+      ctx.fillStyle = 'rgba(5, 5, 8, 0.3)';
+      ctx.fillRect(0, 0, width, height);
+
+      particles.forEach(p => p.draw());
+      drawCenterText();
+
+      frame++;
+      requestAnimationFrame(animate);
+    }
+
+    init();
+    animate();
+
+    // ---------- ЗАПУСК МУЗИКИ ----------
+    const audio = document.getElementById('audioPlayer');
+    const overlay = document.getElementById('click-overlay');
+    
+    function startMusic() {
+      if (audio.paused) {
+        const promise = audio.play();
+        if (promise !== undefined) {
+          promise.then(() => {
+            console.log('🎵 Angel started successfully');
+          }).catch(error => {
+            console.warn('Autoplay prevented, waiting for user interaction');
+            if (overlay.classList.contains('hidden')) {
+              overlay.classList.remove('hidden');
+            }
+          });
+        }
+      }
+      overlay.classList.add('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        if (audio.paused) {
+          audio.play().catch(() => {});
+        }
+      }, 100);
+    });
+
+    overlay.addEventListener('click', startMusic);
+    overlay.addEventListener('touchstart', startMusic);
+
+    canvas.addEventListener('click', startMusic);
+    canvas.addEventListener('touchstart', startMusic);
+
+    document.addEventListener('click', () => {
+      if (audio.paused) {
+        audio.play().catch(() => {});
+        overlay.classList.add('hidden');
+      }
+    });
+    document.addEventListener('touchstart', () => {
+      if (audio.paused) {
+        audio.play().catch(() => {});
+        overlay.classList.add('hidden');
+      }
+    });
+
+    setTimeout(() => {
+      if (audio.paused && !overlay.classList.contains('hidden')) {
+        // Оверлей вже видно
+      } else if (audio.paused) {
+        overlay.classList.remove('hidden');
+      }
+    }, 2000);
+
+    document.addEventListener('keydown', () => {
+      if (audio.paused) {
+        audio.play().catch(() => {});
+        overlay.classList.add('hidden');
+      }
+    });
+
+    console.log('💖 Click/tap anywhere to start the music!');
+    console.log('📁 Make sure "angel.mp3" is in the same folder as this HTML file');
+  </script>
+</body>
+</html>
